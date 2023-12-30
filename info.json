@@ -1,0 +1,26 @@
+[
+    {
+        "id":1,
+        "name":"Dhruv Kumar Yadav",
+        "image_dest":"https://blogger1233.github.io/images/dhruvkumaryadav.png",
+        "icon":"https://blogger1233.github.io/images/ai.svg"
+    },
+    {
+        "id":2,
+        "name":"Atul Yadav",
+        "image_dest":"https://blogger1233.github.io/images/atulyadav.png",
+        "icon":"https://blogger1233.github.io/images/p.svg"
+    },
+    {
+        "id":3,
+        "name":"Yash Bajaj",
+        "image_dest":"https://blogger1233.github.io/images/yashbajaj.png",
+        "icon":"https://blogger1233.github.io/images/b.svg"
+    },
+    {
+        "id":4,
+        "name":"Md Faizan",
+        "image_dest":"https://blogger1233.github.io/images/mdfaizan.png",
+        "icon":"https://blogger1233.github.io/images/g.svg"
+    }
+]
