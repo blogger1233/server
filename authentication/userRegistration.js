@@ -232,15 +232,48 @@ router.get("/vresend/:email", async function (req, res) {
 
 
 
-  router.post("/login",function(req,res){
-
+  router.post("/login",async function(req,res){
+    const { client, database } = await conn("streaming_application");
+    if(!client){
+        res.json(400).json({message:"database is not connected try again"})
+    }
+    const email = req.body.email;
+    const password = req.body.password
+    const username = req.body.username
     if((email||username)&&password){
-            if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
-                    res.status(400).json({message:"invalid email"})
+
+            try{
+
+                const collection = database.collection("userinfo");
+                if(email){
+                    if ( !/^\S+@\S+\.\S+$/.test(email)) {
+                        res.status(400).json({message:"invalid email"})
+                        return;
+                    }
+                    const data = await collection.findOne({username:username},{ projection: { email: 1, password: 1 }});
+                    if(data){
+                        res.status(200).json({data})
+                        return;
+                    }
                 }
+                if(username){
+                    const data2 = await collection.findOne({ username: username }, { projection: { email: 1, password: 1 } });                    ;
+                    if(data2){
+                        res.status(200).json({data2})
+                        return;
+                    }
+                }
+            }
+            catch(error){
+                res.status(200).json({message:error})
+            }
+            finally{
+                 client.close();
+            }
     }
     else{
         res.status(400).json({message:"invalid password username and email"})
+        return;
     }
 
   })
