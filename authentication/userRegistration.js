@@ -3,7 +3,10 @@ const sendMail = require("./sendmail")
 const router = express.Router();
 //importing database module
 const conn = require("../database/connect")
-
+//importing jwt token
+const fs = require("fs")
+const jwt = require("jsonwebtoken")
+const path = require("path")
 
 const validateReg = (obj) => {
     const { username, email, password, confirmPassword } = obj;
@@ -250,19 +253,74 @@ router.get("/vresend/:email", async function (req, res) {
                         res.status(400).json({message:"invalid email"})
                         return;
                     }
-                    const data = await collection.findOne({username:username},{ projection: { email: 1, password: 1 }});
+                    const data = await collection.findOne({email:email},{ projection: { email: 1, password: 1 }});
                     if(data){
-                        res.status(200).json({data})
-                        return;
+                        if(data.email==email&&data.password==data.password){
+                          const filepath = path.resolve(__dirname,"../private_key.pem")
+
+                           fs.readFile(filepath,'utf-8',function(error,data){
+                              if(error){
+                                if(error.code=="ENOENT"){
+                                  res.status(404).json(error)
+                                  return;
+                                }
+                                else{
+                                  res.status(500).json(error)
+                                  return;
+                                }
+                              }
+                              else{
+                                const payload = {
+                                  email: email,
+                                };
+
+                                const options = {
+                                  expiresIn: '2h',
+                                  algorithm:'RS256'
+                                };
+
+                                jwt.sign(payload, data, options, function (error, token) {
+                                  if (error) {
+                                    res.status(500).json({ error: error.message }); // Use error.message to get the error message
+                                    return;
+                                  } else {
+                                    res.status(200).json({ token: token, email: email });
+                                    return;
+                                  }
+                                });
+
+                              }
+                           })
+
+                        }
+                        else{
+                         res.status(400).json({message:"incorrect password"})
+                        }
+
+                    }
+                    else{
+                      res.status(400).json({message:"invalid email"})
+                      return;
                     }
                 }
                 if(username){
-                    const data2 = await collection.findOne({ username: username }, { projection: { email: 1, password: 1 } });                    ;
+                    const data2 = await collection.findOne({ username: username }, { projection: { username: 1, password: 1 } });                    ;
                     if(data2){
-                        res.status(200).json({data2})
-                        return;
-                    }
+                      if(data2.username==username&&data2.password==password){
+
+                      }
+                      else{
+                       res.status(400).json({message:"incorrect password"})
+                       return;
+                      }
+
+                  }
+                  else{
+                    res.status(400).json({message:"invalid username"})
+                    return;
+                  }
                 }
+
             }
             catch(error){
                 res.status(200).json({message:error})
@@ -277,19 +335,5 @@ router.get("/vresend/:email", async function (req, res) {
     }
 
   })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 module.exports = router;
 
