@@ -59,14 +59,15 @@ router.post("/registration", async function (req, res) {
                 res.status(400).json({ message: "email is already registered" })
                 return;
             }
-            const mail = await sendMail(req.body.email, 1242)
+            const code=Math.floor(Math.random()*1000000)
+            const mail = await sendMail(req.body.email, code)
             if (mail.messageId) {
                 const response = await collection.insertOne({
                     email: req.body.email,
                     username: req.body.username,
                     password: req.body.password,
                     verified: false,
-                    code:Math.floor(Math.random()*1000000),
+                    code:code,
                     timer:Date.now()
                 })
                 if (response.acknowledged) {
@@ -93,109 +94,168 @@ router.post("/registration", async function (req, res) {
     }
 })
 
-router.get("/ver/:email/:code",async function(req,res){
+router.get("/ver/:email/:code", async function (req, res) {
     const email = req.params.email;
-    const code = req.params.code;
-    console.log(req.params)
+    var code = req.params.code;
+    console.log(req.params);
     const { client, database } = await conn("streaming_application");
-    if(!client){
-        res.status(400).json({message:"database not connected"})
-        return;
-    }
-    try{
-        const collection = database.collection("userinfo");
-        const response = await collection.findOne({email:email},{verified:1,timer:1});
-        if(response.verified){
-            res.status(200).json({message:"user is already verfied"});
-            return;
-        }
-        const data = await collection.findOne({email:email},{code,email});
-        if(code==data.code&&email==data.email){
-           if(!data.timer+300000<Date.now()) {const response = await collection.updateOne(
-                { email: email },
-                {
-                  $set: { verified: true },
-                  $unset: { code: 1 }
-                }
-              );
-            if(response.acknowledged){
-                res.json({message:"user is verfied"})
-                return
-            }
-            else{
-                res.json({message:"retry again"})
-                return;
-            }}
-            else{
-                res.status(400).json({message:"code is expired"})
-            }
-        }
-        else{
-            res.status(400).json({message: "invalid code"});
-            return;
 
-        }
+    if (!client) {
+      res.status(400).json({ message: "database not connected" });
+      return;
     }
-    catch(error){
-        res.json(400).json({message:error})
+
+    try {
+      const collection = database.collection("userinfo");
+      const response = await collection.findOne({ email: email }, { verified: 1, timer: 1 ,code,email});
+
+      if (!response) {
+        res.status(400).json({ message: "email is not found" });
         return;
+      }
+
+      if (response.verified) {
+        res.status(200).json({ message: "user is already verified" });
+        return;
+      }
+
+      const data = await collection.findOne({ email: email },{code});
+
+      if (data.code==code) {
+        if (!(data.timer + 300000 < Date.now())) {
+          const updateResponse = await collection.updateOne(
+            { email: email },
+            {
+              $set: { verified: true },
+              $unset: { code: 1 }
+            }
+          );
+
+          if (updateResponse.acknowledged) {
+            res.json({ message: "user is verified" });
+            return;
+          } else {
+            res.json({ message: "retry again" });
+            return;
+          }
+        } else {
+          res.status(400).json({ message: "code is expired" });
+          return;
+        }
+      } else {
+        res.status(400).json({ message: "invalid code" });
+        return;
+      }
+    } catch (error) {
+      res.status(400).json({ message: error.message || "Internal Server Error" });
+      return;
+    } finally {
+      await client.close();
     }
-    finally{
-        await client.close();
-    }
-})
-router.get("/vresend/:email", async function(req, res) {
+  });
+
+router.get("/vresend/:email", async function (req, res) {
     const { client, database } = await conn("streaming_application");
     try {
-        if (!client) {
-            res.status(400).json({ message: "Database not connected" });
-            return;
-        }
-
-        const collection = database.collection("userinfo");
-        const response = await collection.insertOne({email:req.params.email})
-        const data = await collection.findOne({ email: req.params.email }, { verified: 1, timer: 1, code: 1, email: 1 });
-
-        if (data) {
-            if (data.verified) {
-                res.status(200).json({ message: "Email is already verified" });
-
-            } else {
-                if (data.code) {
-                    if (data.timer) {
-                        if (data.timer + 120000 < Date.now()) {
-                            if(data.timer+300000<Date.now()){const email_response = await sendMail(data.email, data.code);
-                            const set_timer = await collection.updateOne({ email: req.params.email }, { $set: { timer: Date.now() } });
-
-                            res.json(email_response);}
-                            else{
-                                res.status(400).json({message:"code expired resend code"})
-                            }
-                        } else {
-                            res.status(200).json({ message: `Wait ${(data.timer + 120000 - Date.now()) / 1000} seconds` });
-                            return;
-                        }
-                    } else {
-                        const email_response = await sendMail(data.email, data.code);
-                        const set_timer = await collection.updateOne({ email: req.params.email }, { $set: { timer: Date.now() } });
-                        res.json(email_response);
-                        return;
-                    }
-                } else {
-                    res.status(200).json({ message: "Code not found" });
-                }
-            }
-        } else {
-            res.status(400).json({ message: "Email not found" });
-            return;
-        }
-    } catch (error) {
-        res.status(400).json({ message: error.message || "Internal Server Error" });
+      if (!client) {
+        res.status(400).json({ message: "Database not connected" });
         return;
+      }
+
+      const collection = database.collection("userinfo");
+
+      const data = await collection.findOne(
+        { email: req.params.email },
+        { verified: 1, timer: 1, code: 1, email: 1 }
+      );
+
+      if (data) {
+        if (data.email) {
+          if (data.verified) {
+            res.status(200).json({ message: "Email is already verified" });
+            return;
+          } else {
+            if (data.code) {
+              if (data.timer) {
+                if (data.timer + 120000 < Date.now()&&!(data.timer + 300000 < Date.now())) {
+                  const email_response = await sendMail(data.email, data.code);
+                  const set_timer = await collection.updateOne(
+                    { email: req.params.email },
+                    { $set: { timer: Date.now() } }
+                  );
+
+                  res.json(email_response);
+                  return;
+                } else if (data.timer + 300000 < Date.now()) {
+                  const ver_code = Math.floor(Math.random() * 1000000);
+                  const set_code_set_timer = await collection.updateOne(
+                    { email: req.params.email },
+                    {
+                      $set: {
+                        code: ver_code,
+                        timer: Date.now()
+                      }
+                    }
+                  );
+
+                  const email_response = await sendMail(data.email,ver_code);
+                  res.status(200).json(email_response);
+                } else {
+                  res.status(200).json({
+                    message: `Wait ${
+                      (data.timer + 120000 - Date.now()) / 1000
+                    } seconds`,
+                  });
+                  return;
+                }
+              }
+            }
+          }
+        } else {
+          res.status(400).json({ message: "Email not found" });
+          return;
+        }
+      } else {
+        res.status(400).json({ message: "Data not found" });
+        return;
+      }
+    } catch (error) {
+      res
+        .status(400)
+        .json({ message: error.message || "Internal Server Error" });
+      return;
     } finally {
-        client.close();
+      client.close();
     }
-});
+  });
+
+
+
+
+  router.post("/login",function(req,res){
+
+    if((email||username)&&password){
+            if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+                    res.status(400).json({message:"invalid email"})
+                }
+    }
+    else{
+        res.status(400).json({message:"invalid password username and email"})
+    }
+
+  })
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 module.exports = router;
