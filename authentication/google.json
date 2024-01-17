@@ -1,0 +1,16 @@
+{
+    "web": {
+        "client_id": "150665567026-jpmg3heqdu4m74q9a10q1q6jqtcak91r.apps.googleusercontent.com",
+        "project_id": "black-velocity-388405",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "client_secret": "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",
+        "redirect_uris": [
+            "http://localhost:8000/ologin"
+        ],
+        "javascript_origins": [
+            "http://localhost:5173"
+        ]
+    }
+}

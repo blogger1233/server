@@ -1,7 +1,8 @@
 const express = require("express")
 const cors = require("cors")
 const app = express()
-app.use(cors({origin:"http://localhost:5173"}))
+
+app.use(cors())
 app.use(express.json())
 
 
@@ -10,6 +11,14 @@ const user = require("./authentication/userRegistration")
 app.use("/user",user)
 
 
+//importing login.js
+const login = require("./authentication/login");
+app.use("/login",login)
+
+
+//importing oauthgoogle.js
+const oauth = require("./authentication/oauthgoogle")
+app.use("/",oauth)
 
 
 app.listen(8000,function(){
