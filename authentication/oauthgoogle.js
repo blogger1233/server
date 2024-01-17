@@ -19,6 +19,7 @@ const scopes = ['https://www.googleapis.com/auth/userinfo.profile'];
 // GET request for initiating the OAuth2 authorization flow
 app.get("/", (req, res) => {
   const redirectUri = `${req.protocol}://${req.get("host")}/callback`;
+  console.log(redirectUri)
   const authorizationUrl = oauth2Client.generateAuthUrl({
     access_type: "offline",
     scope: scopes,
@@ -46,31 +47,7 @@ app.get("/callback", async (req, res) => {
     console.log("ID Token:", idToken);
     console.log("User Info:", userInfo);
 
-    res.status(200).send(`
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Authorization Successful</title>
-    </head>
-    <body>
-        <h1>Authorization Successful</h1>
-        <p>Success: true</p>
-        <p>User Info:</p>
-        <ul>
-            <li>Sub: ${userInfo.sub}</li>
-            <li>Name: ${userInfo.name}</li>
-            <li>Given Name: ${userInfo.given_name}</li>
-            <li>Family Name: ${userInfo.family_name}</li>
-            <li>Locale: ${userInfo.locale}</li>
-        </ul>
-        <img src="${userInfo.picture}" alt="User Image">
-        <p>Token: ${accessToken}</p>
-        <p>Message: Authorization successful</p>
-    </body>
-    </html>
-`);
+    res.status(200).json({userInfo});
   } catch (error) {
     console.error("Error during token exchange:", error.message);
     console.error("Error details:", error);
