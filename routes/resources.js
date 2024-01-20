@@ -82,53 +82,12 @@ router.get("/:email",resource,async function(req,res){
     }
 })
 
-const multer  = require("multer");
+
 const { v4: uuid } = require("uuid");
 
+router.post("/:email", resource, async function (req, res) {
 
-const validate = require("./validate");
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.resolve(__dirname, "../database/videos"));
-  },
-  filename: function (req, file, cb) {
-    const getName = function () {
-      const filename = uuid();
-      return filename;
-    }
-    let filename = getName();
-    cb(null, filename + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({
-  storage: storage,
-  fileFilter: validate,
-  limits: {
-    fileSize: 3 * 1024 * 1024 * 1024
-  }
-});
-
-const file = upload.single('filename');
-
-router.post("/:email",resource, async function (req, res) {
-  try {
-    file(req, res, function (error) {
-      if (error) {
-        console.log(error);
-        res.status(400).send("File upload failed: " + error.message);
-      } else {
-        console.log(req.file);
-        res.status(200).send("File uploaded successfully!");
-      }
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Internal Server Error");
-  }
 });
 
 module.exports = router;
-
-

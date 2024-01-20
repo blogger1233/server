@@ -1,6 +1,17 @@
+// validate.js
 const validate = (req, file, cb) => {
-    console.log(file)
-    console.log(req.body)
-};
+   if(file.fieldname=="thumbnail"){
+    if(file.mimetype.split("/")[0]!="image"){
+        cb("invalid file mimeType",false)
+      }
+   }
+   if(file.fieldname=="video"){
+      if(file.mimetype.split("/")[0]!="video"){
+        cb("invalid file mimeType",false)
+      }
+   }
 
-module.exports = validate;
+   cb(null,true)
+  };
+
+  module.exports = validate;
