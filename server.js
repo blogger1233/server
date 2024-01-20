@@ -18,8 +18,12 @@ app.use("/login",login)
 
 //importing oauthgoogle.js
 const oauth = require("./authentication/oauthgoogle")
-app.use("/",oauth)
+app.use("/google",oauth)
 
+
+//importing resource route resources.json
+const resource = require("./routes/resources")
+app.use("/resource",resource)
 
 app.listen(8000,function(){
     console.log("http://localhost:8000")

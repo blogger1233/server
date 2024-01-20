@@ -1,10 +1,8 @@
 const express = require("express");
-const cors = require("cors");
-const app = express.Router();
+const router = express.Router();
 
 const { OAuth2Client } = require("google-auth-library");
 const fetch = require("node-fetch");
-const router = require("./userRegistration");
 const dotenv  = require("dotenv")
 dotenv.config();
 
@@ -16,8 +14,9 @@ const oauth2Client = new OAuth2Client(
 
 const scopes = ['https://www.googleapis.com/auth/userinfo.profile'];
 
-// GET request for initiating the OAuth2 authorization flow
-app.get("/", (req, res) => {
+
+router.get("/", (req, res) => {
+
   const redirectUri = `${req.protocol}://${req.get("host")}/callback`;
   console.log(redirectUri)
   const authorizationUrl = oauth2Client.generateAuthUrl({
@@ -31,7 +30,7 @@ app.get("/", (req, res) => {
 });
 
 // GET request handling the callback from Google after user grants authorization
-app.get("/callback", async (req, res) => {
+router.get("/callback", async (req, res) => {
   const code = req.query.code;
 
   try {
@@ -70,4 +69,4 @@ async function getUserInfo(accessToken) {
 }
 
 
-module.exports = app;
+module.exports = router;

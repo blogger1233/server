@@ -50,7 +50,7 @@ router.post("/",async function(req,res){
                                 };
 
                                 const options = {
-                                  expiresIn: '2h',
+                                  expiresIn: '20h',
                                   algorithm:'RS256'
                                 };
 
