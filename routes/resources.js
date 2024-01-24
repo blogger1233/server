@@ -179,7 +179,7 @@ router.post("/:email/video", (req, res) => {
               `;
 
                           const promises = r.map(async (value) => {
-                            const outputPlaylist = path.resolve(directoryPath, `${filename}_${value}.m3u8`);
+                            const outputPlaylist = path.resolve(directoryPath,`${filename}_${value}.m3u8`);
 
                             await new Promise((resolve, reject) => {
                               ffmpeg(write.path)
@@ -197,7 +197,7 @@ router.post("/:email/video", (req, res) => {
                                   console.log(`Conversion for resolution ${value} finished.`);
                                   mainFileContent += `
               #EXT-X-STREAM-INF:BANDWIDTH=<your_bandwidth_value>, RESOLUTION=${value}, NAME="${value}"
-              ${outputPlaylist}
+              ${path.basename(outputPlaylist)}
               `;
                                   resolve();
                                 })
