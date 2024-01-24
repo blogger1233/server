@@ -88,7 +88,7 @@ const busboy = require("busboy");
 const { ObjectId } = require("mongodb");
 const { error } = require("console");
 
-router.post("/:email/video", (req, res) => {
+router.post("/:email/video",resource, (req, res) => {
   ffmpeg.setFfmpegPath("/snap/bin/ffmpeg")
   const ffprobe = ffmpeg.setFfprobePath("/snap/bin/ffmpeg.ffprobe")
   const directoryName = uuid();
@@ -98,10 +98,12 @@ router.post("/:email/video", (req, res) => {
     fs.mkdirSync(path.resolve(__dirname, "../database/videos", email), { recursive: true });
     fs.mkdir(directoryPath, (err) => {
       if (err) {
+        fs.rmdirSync(directoryPath)
         res.status(500).json({ message: "Error creating directory", error: err });
+
       } else {
         const busboyInstance = busboy({ headers: req.headers });
-        var fileSize = 3 * 1000 * 1000 * 1000;
+        var fileSize = 300*1000*1000;
         var chunkSize = 0;
         var flag = 1;
         var limit = 1;
@@ -188,7 +190,7 @@ router.post("/:email/video", (req, res) => {
                                   '-level 3.0',
                                   `-s ${value}`,
                                   '-start_number 0',
-                                  `-hls_time ${duration}`,
+                                  `-hls_time ${duration/10}`,
                                   '-hls_list_size 0',
                                   `-t ${duration}`,
                                 ])
@@ -332,75 +334,114 @@ router.post("/:email/details/:insertid", resource, async function (req, res) {
   }
 });
 
-router.get("/:email/stream/:id", resource, async function (req, res) {
+
+router.get("/:email/video/:id", async function (req, res) {
   try {
     const { client, database } = await conn("streaming_application");
     const collection = database.collection("video");
-    const response = await collection.findOne({ _id: new ObjectId(req.params.id) });
 
-    if (response) {
-      // Correct way to create a new FfmpegCommand instance
-      const ffmpeg = require("fluent-ffmpeg");
-      const fs = require("fs");
+    if (req.params.id) {
+      var response = await collection.findOne({ _id: new ObjectId(req.params.id) });
 
-      ffmpeg.setFfmpegPath("/bin/ffmpeg");
+      if (response) {
+        const filename = response.filename + ".m3u8";
+        const dir = response.video_dir;
+        const videoPath = path.join(dir, filename);
 
-      const videoReadStream = fs.createReadStream(response.videoLocation.path);
 
-      res.setHeader('Content-Type', 'video/mp4');
+        router.use(req.url+"folder", express.static(dir));
 
-      const ffmpegCommand = ffmpeg(videoReadStream);
+        res.setHeader("Content-type", "text/html");
+        res.write(`<!DOCTYPE html>
+        <html lang="en">
 
-      // Handle the 'end' event
-      ffmpegCommand.on('end', () => {
-        console.log('Streaming finished');
-        // Ensure that the response is not being sent again
-        if (!res.headersSent) {
-          res.end();
-        }
-      });
+        <head>
+            <meta charset="UTF-8">
+            <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+            <link rel="icon" href="" type="image/x-icon">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Hls video</title>
+        </head>
 
-      // Handle the 'error' event
-      ffmpegCommand.on('error', (err) => {
-        console.error('FFmpeg Error:', err);
-        // Ensure that the response is not being sent again
-        if (!res.headersSent) {
-          res.status(500).send('Internal Server Error');
-        }
-      });
+        <body>
+            <video id="video" controls></video>
+            <script src="//cdn.jsdelivr.net/npm/hls.js@1"></script>
+            <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+            <script>
+                document.addEventListener("DOMContentLoaded", async () => {
+                    const video = document.getElementById("video");
 
-      // Pipe the ffmpeg command to the response
-      ffmpegCommand.pipe(res, { end: true });
+                    if (Hls.isSupported()) {
+                        const hls = new Hls();
+                        hls.loadSource("http://localhost:8000/${"resource"+req.url+"folder/"+filename}");
+                        hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+                            var availableQuality = hls.levels.map((l) => l.height);
 
-      // Handle the 'close' event of the response to log when the response has been sent
-      res.on('close', () => {
-        console.log('Response closed');
-      });
+                            // Define default options for Plyr
+                            var defaultOptions = {
+                                controls: [
+                                    'play-large',
+                                    'restart',
+                                    'rewind',
+                                    'play',
+                                    'fast-forward',
+                                    'progress',
+                                    'current-time',
+                                    'duration',
+                                    'mute',
+                                    'volume',
+                                    'captions',
+                                    'settings',
+                                    'pip',
+                                    'fullscreen',
+                                ],
+                                quality: {
+                                    default: availableQuality[0],
+                                    options: availableQuality,
+                                    forced: true,
+                                    onChange: (e) => updateQuality(e),
+                                }
+                            };
 
-      // Handle potential errors in the response stream
-      res.on('error', (err) => {
-        console.error('Response Error:', err);
-        // Ensure that the response is not being sent again
-        if (!res.headersSent) {
-          res.status(500).send('Internal Server Error');
-        }
-      });
+                            // Create Plyr instance
+                            var player = new Plyr(video, defaultOptions);
+                        });
 
-      // Optionally, handle the 'finish' event of the response
-      res.on('finish', () => {
-        console.log('Response finished');
-      });
+                        // Attach Hls.js to the video element
+                        hls.attachMedia(video);
+                        window.hls = hls;
+                    }
 
-      // Optionally, handle the 'unpipe' event of the ffmpeg command
-      ffmpegCommand.on('unpipe', (src) => {
-        console.log('Unpiped from:', src);
-      });
+                    // Update Hls.js quality based on Plyr selection
+                    function updateQuality(e) {
+                        window.hls.levels.forEach((level, levelIndex) => {
+                            if (level.height === e) {
+                                console.log("Found quality match with " + e);
+                                window.hls.currentLevel = levelIndex;
+                            }
+                        });
+                    }
+                });
+            </script>
+        </body>
 
+        </html>`);
+        res.send();
+
+      }
     } else {
-      res.json({ message: "Video not found" });
+      var response = await collection.find({}).toArray();
+      if (response) {
+        res.json({ response });
+      }
     }
-  } catch (error) {
-    res.json(error);
+  } catch (err) {
+    res.json({ message: err });
   }
 });
+
+module.exports = router;
+
+
+
 module.exports = router;
