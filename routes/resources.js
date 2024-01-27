@@ -112,6 +112,7 @@ router.post("/:email/video",resource, (req, res) => {
           var write = fs.createWriteStream(path.resolve(directoryPath, filename));
           file.pipe(write)
           file.on("data", function (data) {
+
             chunkSize += data.length;
             console.log(chunkSize)
             if (chunkSize > fileSize) {
@@ -120,8 +121,31 @@ router.post("/:email/video",resource, (req, res) => {
           })
 
           file.on("end", function () {
-            if (!limit) {
-              fs.rmdir(directoryPath, { recursive: true }, (err) => {
+            if(chunkSize==0)
+            {
+              fs.rmdirSync(directoryPath,{recursive:true})
+              res.json({message:'invalid file'})
+              return;
+            }
+            if (info.mimeType.split("/")[0] != "video") {
+
+              fs.rmdir(directoryPath,{recursive:true}, function (err) {
+                if (err) {
+                  res.json({ message: err })
+                  return;
+                }
+                else {
+
+                  res.json({ message: "video format file required" })
+
+                  return;
+                }
+              })
+
+            }
+
+            if (limit==0) {
+              fs.rmdir(directoryPath,{recursive:true}, (err) => {
                 if (err) {
                   res.status(200).json({ message: err })
                   return;
@@ -133,28 +157,16 @@ router.post("/:email/video",resource, (req, res) => {
               })
             }
 
-            if (info.mimeType.split("/")[0] != "video" && limit) {
-
-              fs.rmdir(directoryPath, { recursive: true }, function (err) {
-                if (err) {
-                  res.json({ message: err })
-                  return;
-                }
-                else {
-                  res.json({ message: "video format file required" })
-                  return;
-                }
-              })
-
-            }
 
 
 
-            else if (flag && limit) {
 
+             if (flag!=0 && limit!=0) {
+              console.log(info)
 
 
               write.on("finish", async () => {
+
                 try {
                   const { client, database } = await conn("streaming_application");
                   const collection = database.collection("video");
@@ -246,7 +258,9 @@ router.post("/:email/video",resource, (req, res) => {
                 return;
               })
 
+
             }
+
 
           })
 
@@ -268,7 +282,7 @@ router.post("/:email/video",resource, (req, res) => {
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, path.resolve(__dirname, "../database/videos"));
+    cb(null, path.resolve(__dirname, "../database/videos/thumbnail"));
   },
   filename: function (req, file, cb) {
     cb(null, uuid() + path.extname(file.originalname));
@@ -335,113 +349,221 @@ router.post("/:email/details/:insertid", resource, async function (req, res) {
 });
 
 
-router.get("/:email/video/:id", async function (req, res) {
-  try {
-    const { client, database } = await conn("streaming_application");
-    const collection = database.collection("video");
+router.patch("/:email/video/:insertid/:like",resource,async function(req,res){
+  const email = req.params.email;
+  const insertId = req.params.insertid;
+  const like = req.params.like=="true"?true:false;
 
-    if (req.params.id) {
-      var response = await collection.findOne({ _id: new ObjectId(req.params.id) });
+  try{
+    const {client,database}= await conn("streaming_application")
+    const collection = database.collection("video")
+    const response = await collection.findOne({_id:new ObjectId(insertId)});
+    if(response){
+      const likedBy = response.likeBy;
+      const dislikeBy = response.dislikeBy;
+      if(!likedBy&&!dislikeBy){//both are undefined
+        if(like){
+          const likeBy = [req.params.email]
+          const response2 = await collection.updateOne({
+            _id: new ObjectId(req.params.insertid)
+          },
+          {
+            $set:{
+              likeBy:likeBy
+            }
+          })
+          res.json({message:response2})
+        }
+        else{
+          const dislikeBy = [req.params.email]
+          const response2 = await collection.updateOne({
+            _id: new ObjectId(req.params.insertid)
+          },
+          {
+            $set:{
+              dislikeBy:dislikeBy
+            }
+          })
+          res.json({message:response2})
+        }
+      }
+      if(!likedBy&&dislikeBy){//dislikeBy is defined
+        const index = dislikeBy.indexOf(req.params.email)
+        if(like){
+          const array = [req.params.email]
 
-      if (response) {
-        const filename = response.filename + ".m3u8";
-        const dir = response.video_dir;
-        const videoPath = path.join(dir, filename);
+          if(index==-1){
+            const response3 = await collection.updateOne({
+              _id: new ObjectId(req.params.insertid)
+            },{
+              $set:{
+                likeBy:array
+              }
+            })
+            res.json({response:response3})
+          }
+          else{
+            dislikeBy.splice(index,1);
+            const response3 = await collection.updateOne({
+              _id: new ObjectId(req.params.insertid)
+            },{
+              $set:{
+                likeBy:array,
+                dislikeBy:dislikeBy
+              }
+            })
+            res.json({response:response3})
+          }
 
+        }
+        else{
+          const set = new Set(dislikeBy);
+          dislikeBy.add(req.params.email);
+          const array = Array.from(set)
+          const response3 = await collection.updateOne({
+            _id: new ObjectId(req.params.insertid)
+          },{
+            $set:{
+              dislikeBy:array
+            }
+          })
+          res.json({response:response3})
 
-        router.use(req.url+"folder", express.static(dir));
+        }
+      }
+      if(likedBy&&!dislikeBy){//likeBy is defined
+        const index = likedBy.indexOf(req.params.email)
 
-        res.setHeader("Content-type", "text/html");
-        res.write(`<!DOCTYPE html>
-        <html lang="en">
+        if(like){
+          console.log("hello world")
+          const set = new Set(likedBy);
+          set.add(req.params.email);
+          const array = Array.from(set)
+          const response3 = await collection.updateOne({
+            _id: new ObjectId(req.params.insertid)
+          },{
+            $set:{
+              likeBy:array
+            }
+          })
+          res.json({response:response3})
+          return;
+        }
 
-        <head>
-            <meta charset="UTF-8">
-            <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-            <link rel="icon" href="" type="image/x-icon">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Hls video</title>
-        </head>
+        else{
+          if(index==-1){
+            const array = [req.params.email]
+            const response3 = await collection.updateOne({
+              _id: new ObjectId(req.params.insertid)
+            },{
+              $set:{
+                dislikeBy:array
+              }
+            })
+            res.json({response:response3})
+            return;
+          }
+          else{
+            const array = [req.params.email]
+            likedBy.splice(index,1)
+            const response3 = await collection.updateOne({
+              _id: new ObjectId(req.params.insertid)
+            },{
+              $set:{
+                dislikeBy:array,
+                likeBy:likedBy
+              }
+            })
+            res.json({response:response3})
+            return;
+          }
 
-        <body>
-            <video id="video" controls></video>
-            <script src="//cdn.jsdelivr.net/npm/hls.js@1"></script>
-            <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
-            <script>
-                document.addEventListener("DOMContentLoaded", async () => {
-                    const video = document.getElementById("video");
-
-                    if (Hls.isSupported()) {
-                        const hls = new Hls();
-                        hls.loadSource("http://localhost:8000/${"resource"+req.url+"folder/"+filename}");
-                        hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-                            var availableQuality = hls.levels.map((l) => l.height);
-
-                            // Define default options for Plyr
-                            var defaultOptions = {
-                                controls: [
-                                    'play-large',
-                                    'restart',
-                                    'rewind',
-                                    'play',
-                                    'fast-forward',
-                                    'progress',
-                                    'current-time',
-                                    'duration',
-                                    'mute',
-                                    'volume',
-                                    'captions',
-                                    'settings',
-                                    'pip',
-                                    'fullscreen',
-                                ],
-                                quality: {
-                                    default: availableQuality[0],
-                                    options: availableQuality,
-                                    forced: true,
-                                    onChange: (e) => updateQuality(e),
-                                }
-                            };
-
-                            // Create Plyr instance
-                            var player = new Plyr(video, defaultOptions);
-                        });
-
-                        // Attach Hls.js to the video element
-                        hls.attachMedia(video);
-                        window.hls = hls;
-                    }
-
-                    // Update Hls.js quality based on Plyr selection
-                    function updateQuality(e) {
-                        window.hls.levels.forEach((level, levelIndex) => {
-                            if (level.height === e) {
-                                console.log("Found quality match with " + e);
-                                window.hls.currentLevel = levelIndex;
-                            }
-                        });
-                    }
-                });
-            </script>
-        </body>
-
-        </html>`);
-        res.send();
+        }
 
       }
-    } else {
-      var response = await collection.find({}).toArray();
-      if (response) {
-        res.json({ response });
+      if(likedBy&&dislikeBy){
+        if(like){
+          const index = dislikeBy.indexOf(req.params.email)
+          if(index==-1){
+            const set = new Set(likedBy)
+            set.add(req.params.email)
+            const array = Array.from(set)
+            const response3 = await collection.updateOne({
+              _id: new ObjectId(req.params.insertid)
+            },{
+              $set:{
+                likeBy:array
+              }
+            })
+            res.json({response:response3})
+            return
+          }
+          else{
+            dislikeBy.splice(index,1);
+            const set = new Set(likedBy)
+            set.add(req.params.email)
+            const array = Array.from(set)
+            const response3 = await collection.updateOne({
+              _id: new ObjectId(req.params.insertid)
+            },{
+              $set:{
+                dislikeBy:dislikeBy,
+                likeBy:array
+              }
+            })
+            res.json({response:response3})
+            return;
+          }
+        }
+        else{
+          const index = likedBy.indexOf(req.params.email)
+          if(index==-1){
+            const set = new Set(dislikeBy)
+            set.add(req.params.email)
+            const array = Array.from(set)
+            const response3 = await collection.updateOne({
+              _id: new ObjectId(req.params.insertid)
+            },{
+              $set:{
+                dislikeBy:array,
+
+              }
+            })
+            res.json({response:response3})
+            return;
+            }
+            else{
+              console.log(index)
+
+              likedBy.splice(index,1)
+              const set = new Set(dislikeBy)
+              set.add(req.params.email)
+              const array = Array.from(set)
+              const response3 = await collection.updateOne({
+                _id: new ObjectId(req.params.insertid)
+              },{
+                $set:{
+                  dislikeBy:array,
+                  likeBy:likedBy
+                }
+              })
+              res.json({response:response3})
+              return;
+            }
+          }
       }
     }
-  } catch (err) {
-    res.json({ message: err });
+    else{
+      res.status(400).json({message:"video not found"})
+    }
   }
-});
+  catch(err){
 
-module.exports = router;
+  }
+})
 
+router.post("/:email/video/:insertid/:like/remove",function(){
 
+})
 
 module.exports = router;
