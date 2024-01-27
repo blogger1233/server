@@ -17,11 +17,10 @@ router.post("/",async function(req,res){
     }
     const email = req.body.email;
     const password = req.body.password
-    const username = req.body.username
-    if((email||username)&&password){
+
+    if(email&&password){
 
             try{
-
                 const collection = database.collection("userinfo");
                 if(email){
                     if ( !/^\S+@\S+\.\S+$/.test(email)) {
@@ -30,7 +29,7 @@ router.post("/",async function(req,res){
                     }
                     const data = await collection.findOne({email:email},{ projection: { email: 1, password: 1 }});
                     if(data){
-                        if(data.email==email&&data.password==data.password){
+                        if(data.email==email&&data.password==password){
                           const filepath = path.resolve(__dirname,"../database/private_key.pem")
 
                            fs.readFile(filepath,'utf-8',function(error,data){
@@ -98,24 +97,6 @@ router.post("/",async function(req,res){
                       return;
                     }
                 }
-                if(username){
-                    const data2 = await collection.findOne({ username: username }, { projection: { username: 1, password: 1 } });                    ;
-                    if(data2){
-                      if(data2.username==username&&data2.password==password){
-
-                      }
-                      else{
-                       res.status(400).json({message:"incorrect password"})
-                       return;
-                      }
-
-                  }
-                  else{
-                    res.status(400).json({message:"invalid username"})
-                    return;
-                  }
-                }
-
             }
             catch(error){
                 res.status(200).json({message:error})

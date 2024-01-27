@@ -16,10 +16,6 @@ const login = require("./authentication/login");
 app.use("/login",login)
 
 
-//importing oauthgoogle.js
-const oauth = require("./authentication/oauthgoogle")
-app.use("/google",oauth)
-
 
 //importing resource route resources.json
 const resource = require("./routes/resources")

@@ -9,34 +9,29 @@ const jwt = require("jsonwebtoken")
 const path = require("path")
 
 const validateReg = (obj) => {
-    const { username, email, password, confirmPassword } = obj;
+    const {  email, password, confirmPassword } = obj;
 
     // Check if email is provided and matches a basic email pattern
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
         return "Invalid email address";
     }
 
-    // Check if username is provided and meets certain criteria (e.g., at least 3 characters)
-    if (!username || username.length < 3) {
-        return "Invalid username";
-    }
-
     // Check if password is provided and has at least 10 characters
-    if (!password || password.length < 10) {
-        return "Password must be at least 10 characters";
+    if (!password) {
+        return "Invalid password";
     }
-
-    // Check if confirmPassword matches the password
     if (password !== confirmPassword) {
-        return "Passwords do not match";
+      return "Passwords do not match";
+  }
+    if(password.length<10){
+      return "Password must be at least 10 characters"
     }
 
-    // If all validations pass, return null (indicating success)
     return null;
 };
 
 router.post("/registration", async function (req, res) {
-    const { email, username, password, confirmPassword } = req.body;
+    const { email, password, confirmPassword } = req.body;
     const validationError = validateReg(req.body)
     if (validationError) {
         res.status(400).json({ message: validationError });
@@ -49,16 +44,9 @@ router.post("/registration", async function (req, res) {
             return;
         }
         try {
-
-
             const collection = database.collection("userinfo")
-            const result = await collection.find({ username: req.body.username }).toArray();
             const result2 = await collection.find({ email: req.body.email }).toArray();
-            if (result.length > 0) {
-                res.status(400).json({ message: "username is already registered" })
-                return;
-            }
-            if (result2.length > 0) {
+          if (result2.length > 0) {
                 res.status(400).json({ message: "email is already registered" })
                 return;
             }
@@ -67,7 +55,6 @@ router.post("/registration", async function (req, res) {
             if (mail.messageId) {
                 const response = await collection.insertOne({
                     email: req.body.email,
-                    username: req.body.username,
                     password: req.body.password,
                     verified: false,
                     code:code,
@@ -102,12 +89,10 @@ router.get("/ver/:email/:code", async function (req, res) {
     var code = req.params.code;
     console.log(req.params);
     const { client, database } = await conn("streaming_application");
-
     if (!client) {
       res.status(400).json({ message: "database not connected" });
       return;
     }
-
     try {
       const collection = database.collection("userinfo");
       const response = await collection.findOne({ email: email }, { verified: 1, timer: 1 ,code,email});
@@ -130,7 +115,7 @@ router.get("/ver/:email/:code", async function (req, res) {
             { email: email },
             {
               $set: { verified: true },
-              $unset: { code: 1 }
+              $unset: { code: 1 ,timer:1}
             }
           );
 
