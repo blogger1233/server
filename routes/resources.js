@@ -573,6 +573,64 @@ router.patch("/:email/video/:insertid/:like",resource,async function(req,res){
 
   }
 })
+const multer2 = multer.diskStorage({
+  destination: function(req,file,cb){
+    cb(null,path.resolve(__dirname,"../database/videos/profile"))
+  },
+  filename:function(req,file,cb){
+    const filename = uuid()+path.extname(file.originalname);
+    cb(null,filename)
+  },
+  fileFilter:(req,file,cb)=>{
+    if(file.mimeType.split("/")[0]!="image"){
+      cb("invalid file type image required",false)
+    }
+
+    return cb(null,true)
+  }
+})
+
+const uploadProfile = multer({storage:multer2})
+var uploadPfp = uploadProfile.single("profile")
+router.post("/:email/adduserDetails", resource, async function(req, res) {
+  try {
+    const { client, database } = await conn("streaming_application");
+    const collection = database.collection("userinfo");
+    const data = await collection.findOne({ email: req.params.email }, { projection: { pfp: 1, chName: 1 } });
+
+    uploadPfp(req, res, async function(err) {
+      if (err) {
+        res.json({ message: err });
+        return;
+      } else {
+        const path = req.file.path;
+        const response = await collection.updateOne(
+          { email: req.params.email },
+          { $set: { pfp: path, chName: req.body.chName } }
+        );
+
+        if (response.acknowledged) {
+          fs.access(data.pfp, fs.constants.F_OK, (err) => {
+            if (err) {
+              // File does not exist
+
+              res.json({ message: "Profile details updated successfully" });
+              return;
+            } else {
+              // File exists
+              fs.unlinkSync(data.pfp);
+              res.json({ message: "Profile details updated successfully" });
+              return;
+            }
+          });
+        }
+      }
+    });
+  } catch (err) {
+    res.json({ message: err });
+    return;
+  }
+});
 
 
 

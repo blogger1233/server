@@ -97,7 +97,7 @@ router.post("/",async function(req,res){
 
                     }
                     else{
-                      res.status(400).json({message:"invalid email"})
+                      res.status(400).json({message:"email is not registered"})
                       return;
                     }
                 }

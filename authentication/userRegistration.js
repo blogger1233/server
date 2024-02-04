@@ -165,6 +165,10 @@ router.get("/vresend/:email", async function (req, res) {
           } else {
             if (data.code) {
               if (data.timer) {
+                if(Date.now-data.timer>240000){
+                  res.json({message:"code expired (2min)"})
+                  return;
+                }
                 if (Date.now() - data.timer > 120000) {
                   const updatedCode = Math.floor(Math.random() * 1000000);
                   const response2 = await collection.updateOne(
@@ -178,7 +182,7 @@ router.get("/vresend/:email", async function (req, res) {
                     }
 
                 } else {
-                  res.json({ message: "wait " + (Date.now() - data.timer) });
+                  res.json({ message: "wait " + (120000-(Date.now() - data.timer)) });
                 }
 
               }
