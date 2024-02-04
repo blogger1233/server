@@ -53,12 +53,12 @@ async function resource(req, res, next) {
           }
         }
         else {
-          res.status(401).json("unauthorized")
+          res.status(401).json({message:"unauthorized"})
           return;
         }
       }
       else {
-        res.status(401).json("invalid authorization")
+        res.status(401).json({message:"invalid authorization"})
         return;
       }
     }
@@ -347,7 +347,21 @@ router.post("/:email/details/:insertid", resource, async function (req, res) {
     res.json(error);
   }
 });
+router.get("/:email/video/:no",resource,async function(req,res){
+      try{
+        const no = req.params.no;
+        const {client,database}=await conn("streaming_application")
+        const collection = database.collection("video")
+        const result = await collection.find({}).skip(no*10).limit(10).toArray();
 
+        res.json(result)
+        return
+      }
+      catch{
+        res.json({message:'error'})
+        return;
+      }
+})
 
 router.patch("/:email/video/:insertid/:like",resource,async function(req,res){
   const email = req.params.email;
@@ -533,9 +547,7 @@ router.patch("/:email/video/:insertid/:like",resource,async function(req,res){
             return;
             }
             else{
-              console.log(index)
-
-              likedBy.splice(index,1)
+            likedBy.splice(index,1)
               const set = new Set(dislikeBy)
               set.add(req.params.email)
               const array = Array.from(set)
@@ -562,8 +574,6 @@ router.patch("/:email/video/:insertid/:like",resource,async function(req,res){
   }
 })
 
-router.post("/:email/video/:insertid/:like/remove",function(){
 
-})
 
 module.exports = router;

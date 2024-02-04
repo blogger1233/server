@@ -1,12 +1,12 @@
 const express = require("express")
-const sendMail = require("./sendmail")
 const router = express.Router();
 //importing database module
 const conn = require("../database/connect")
 //importing jwt token
 const fs = require("fs")
 const jwt = require("jsonwebtoken")
-const path = require("path")
+const path = require("path");
+const sendMail = require("./sendmail");
 
 const validateReg = (obj) => {
     const {  email, password, confirmPassword } = obj;
@@ -61,7 +61,7 @@ router.post("/registration", async function (req, res) {
                     timer:Date.now()
                 })
                 if (response.acknowledged) {
-                    res.status(200).json({ response })
+                    res.status(200).json({ response ,email:email})
                     return;
                 }
                 else {
@@ -127,7 +127,7 @@ router.get("/ver/:email/:code", async function (req, res) {
             return;
           }
         } else {
-          res.status(400).json({ message: "code is expired" });
+          res.status(400).json({ message: "code expired" });
           return;
         }
       } else {
@@ -165,37 +165,22 @@ router.get("/vresend/:email", async function (req, res) {
           } else {
             if (data.code) {
               if (data.timer) {
-                if (data.timer + 120000 < Date.now()&&!(data.timer + 300000 < Date.now())) {
-                  const email_response = await sendMail(data.email, data.code);
-                  const set_timer = await collection.updateOne(
+                if (Date.now() - data.timer > 120000) {
+                  const updatedCode = Math.floor(Math.random() * 1000000);
+                  const response2 = await collection.updateOne(
                     { email: req.params.email },
-                    { $set: { timer: Date.now() } }
-                  );
+                    { $set: { timer: Date.now(), code: updatedCode } }
 
-                  res.json(email_response);
-                  return;
-                } else if (data.timer + 300000 < Date.now()) {
-                  const ver_code = Math.floor(Math.random() * 1000000);
-                  const set_code_set_timer = await collection.updateOne(
-                    { email: req.params.email },
-                    {
-                      $set: {
-                        code: ver_code,
-                        timer: Date.now()
-                      }
+                  );
+                    if(response2.acknowledged){
+                      const mail = await sendMail(data.email,updatedCode)
+                      res.json({message:mail})
                     }
-                  );
 
-                  const email_response = await sendMail(data.email,ver_code);
-                  res.status(200).json(email_response);
                 } else {
-                  res.status(200).json({
-                    message: `Wait ${
-                      (data.timer + 120000 - Date.now()) / 1000
-                    } seconds`,
-                  });
-                  return;
+                  res.json({ message: "wait " + (Date.now() - data.timer) });
                 }
+
               }
             }
           }

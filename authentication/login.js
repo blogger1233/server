@@ -27,8 +27,12 @@ router.post("/",async function(req,res){
                         res.status(400).json({message:"invalid email"})
                         return;
                     }
-                    const data = await collection.findOne({email:email},{ projection: { email: 1, password: 1 }});
+                    const data = await collection.findOne({email:email},{ projection: { email: 1, password: 1,verified:1 }});
                     if(data){
+                        if(!data.verified){
+                          res.json({message:"user is not verfied"})
+                          return;
+                        }
                         if(data.email==email&&data.password==password){
                           const filepath = path.resolve(__dirname,"../database/private_key.pem")
 
