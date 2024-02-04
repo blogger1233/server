@@ -58,7 +58,9 @@ router.post("/registration", async function (req, res) {
                     password: req.body.password,
                     verified: false,
                     code:code,
-                    timer:Date.now()
+                    timer:Date.now(),
+                    pfp:"",
+                    chName:""
                 })
                 if (response.acknowledged) {
                     res.status(200).json({ response ,email:email})
