@@ -60,7 +60,12 @@ router.post("/registration", async function (req, res) {
                     code:code,
                     timer:Date.now(),
                     pfp:"",
-                    chName:""
+                    chName:"",
+                    no_of_sub:[],
+                    sub_channel:[],
+                    likedVideo:[],
+                    watchLater:[],
+                    yourVideo:[]
                 })
                 if (response.acknowledged) {
                     res.status(200).json({ response ,email:email})
@@ -89,7 +94,6 @@ router.post("/registration", async function (req, res) {
 router.get("/ver/:email/:code", async function (req, res) {
     const email = req.params.email;
     var code = req.params.code;
-    console.log(req.params);
     const { client, database } = await conn("streaming_application");
     if (!client) {
       res.status(400).json({ message: "database not connected" });
@@ -207,8 +211,6 @@ router.get("/vresend/:email", async function (req, res) {
       client.close();
     }
   });
-
-
 
 
 

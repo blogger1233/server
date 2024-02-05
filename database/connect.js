@@ -6,15 +6,41 @@ const conn = async function(database_name){
     try{
         await client.connect();
         const database = client.db(database_name);
-        console.log("connected to the database");
-
         return {client,database}
     }
     catch(error){
-        console.log("error while connecting to the database")
         return null;
     }
 }
 
 
 module.exports = conn
+
+/*
+    user info:
+        email:
+        username
+        password:
+        verified:
+        pfp:
+        chName:
+        no_of_sub:  array(user_id)
+        sub_channel: array(user_id)
+        watchLater:array(videoId)
+        likedVideo:array(videoId)
+
+
+    video info:
+        filename:
+        email:
+        video_dir:
+        views:array(user_id)
+        likeBy:
+        dislikeBy:
+        tags:
+        description:
+        thumbnail:
+        title:
+
+
+*/

@@ -231,10 +231,22 @@ router.post("/:email/video",resource, (req, res) => {
                           const response = await collection.insertOne({
                             email: req.params.email,
                             video_dir: directoryPath,
-                            filename: filename
+                            filename: filename,
+                            views:[],
+                            tags:[],
+                            description:"",
+                            thumbnail:"",
+                            title:"",
+                            dislikeBy:[],
+                            likeBy:[],
+                            upload_date:Date.now()
                           });
 
                           if (response.acknowledged) {
+                            const user_info = database.collection("userinfo")
+                            const response2 = await user_info.updateOne({email:req.params.email},{
+                              $push:{yourVideo:response.insertedId}
+                            })
                             res.json({ message: "processing finished file uploaded", insertId: response });
                           } else {
                             fs.rmdirSync(directoryPath, { recursive: true });
@@ -318,8 +330,6 @@ router.post("/:email/details/:insertid", resource, async function (req, res) {
         if (error) {
           res.status(400).json({ message: error, mail: "4444dhruv@gmail.com" });
         } else {
-          console.log(req.field)
-
           const response2 = await collection.updateOne(
             {
               email: req.params.email,
@@ -329,6 +339,9 @@ router.post("/:email/details/:insertid", resource, async function (req, res) {
               $set: {
                 thumbnail: req.file,
                 title: req.body.heading
+              },
+              $push:{
+                tags:req.body.tags.split("#")
               }
             }
           );
@@ -363,216 +376,124 @@ router.get("/:email/video/:no",resource,async function(req,res){
       }
 })
 
-router.patch("/:email/video/:insertid/:like",resource,async function(req,res){
+router.patch("/:email/video/:insertid/:like", resource, async function (req, res) {
   const email = req.params.email;
   const insertId = req.params.insertid;
-  const like = req.params.like=="true"?true:false;
+  var like = true;
 
-  try{
-    const {client,database}= await conn("streaming_application")
-    const collection = database.collection("video")
-    const response = await collection.findOne({_id:new ObjectId(insertId)});
-    if(response){
-      const likedBy = response.likeBy;
+  if (req.params.like == "true") {
+    like = true;
+  }
+  if (req.params.like == "false") {
+    like = false;
+  }
+
+  try {
+    const { client, database } = await conn("streaming_application");
+    const collection = database.collection("video");
+    const user_info = database.collection("userinfo");
+    const response = await collection.findOne({ _id: new ObjectId(insertId) });
+
+    if (response) {
+      const likeBy = response.likeBy;
       const dislikeBy = response.dislikeBy;
-      if(!likedBy&&!dislikeBy){//both are undefined
-        if(like){
-          const likeBy = [req.params.email]
-          const response2 = await collection.updateOne({
-            _id: new ObjectId(req.params.insertid)
-          },
-          {
-            $set:{
-              likeBy:likeBy
+
+      if (likeBy.includes(email)) {
+        // User already liked the video
+
+
+        if (like) {
+          // User wants to unlike the video
+          await collection.updateOne(
+            { _id: new ObjectId(insertId) },
+            { $pull: { likeBy: req.params.email } }
+          );
+          await user_info.updateOne(
+            { email: req.params.email },
+            { $pull: { likedVideo: new ObjectId(insertId) } }
+          );
+          res.json({message:"user has unliked the video"});
+          return
+        } else {
+          // User already liked the video but wants to dislike
+          await collection.updateOne(
+            { _id: new ObjectId(insertId) },
+            {
+              $pull: { likeBy: req.params.email },
+              $push: { dislikeBy: req.params.email },
             }
-          })
-          res.json({message:response2})
+          );
+          await user_info.updateOne(
+            { email: req.params.email },
+            { $pull: { likedVideo: new ObjectId(insertId) } }
+          );
+          res.json({message:"user has changed from liking to disliking the video"});
+          return
         }
-        else{
-          const dislikeBy = [req.params.email]
-          const response2 = await collection.updateOne({
-            _id: new ObjectId(req.params.insertid)
-          },
-          {
-            $set:{
-              dislikeBy:dislikeBy
+      } else if (dislikeBy.includes(email)) {
+        // User already disliked the video
+
+
+        if (like) {
+          // User already disliked but wants to like
+          await collection.updateOne(
+            { _id: new ObjectId(insertId) },
+            {
+              $pull: { dislikeBy: req.params.email },
+              $push: { likeBy: req.params.email },
             }
-          })
-          res.json({message:response2})
+          );
+          await user_info.updateOne(
+            { email: req.params.email },
+            { $pull: { likedVideo: new ObjectId(insertId) } }
+          );
+          res.json({message:"user has changed from disliking to liking the video"});
+          return
+        } else {
+          // User wants to undislike the video
+          await collection.updateOne(
+            { _id: new ObjectId(insertId) },
+            { $pull: { dislikeBy: req.params.email } }
+          );
+          res.json({message:"user has undisliked the video"});
+          return
+        }
+      } else {
+
+        if (like) {
+          // User likes the video
+          await collection.updateOne(
+            { _id: new ObjectId(insertId) },
+            { $push: { likeBy: req.params.email } }
+          );
+          await user_info.updateOne(
+            { email: req.params.email },
+            { $push: { likedVideo: new ObjectId(insertId) } }
+          );
+           res.json({message:"user liked the video"})
+          return
+        } else {
+          // User dislikes the video
+          await collection.updateOne(
+            { _id: new ObjectId(insertId) },
+            { $push: { dislikeBy: req.params.email } }
+          );
+          res.json({message:"user has disliked the video"});
+          return
         }
       }
-      if(!likedBy&&dislikeBy){//dislikeBy is defined
-        const index = dislikeBy.indexOf(req.params.email)
-        if(like){
-          const array = [req.params.email]
-
-          if(index==-1){
-            const response3 = await collection.updateOne({
-              _id: new ObjectId(req.params.insertid)
-            },{
-              $set:{
-                likeBy:array
-              }
-            })
-            res.json({response:response3})
-          }
-          else{
-            dislikeBy.splice(index,1);
-            const response3 = await collection.updateOne({
-              _id: new ObjectId(req.params.insertid)
-            },{
-              $set:{
-                likeBy:array,
-                dislikeBy:dislikeBy
-              }
-            })
-            res.json({response:response3})
-          }
-
-        }
-        else{
-          const set = new Set(dislikeBy);
-          dislikeBy.add(req.params.email);
-          const array = Array.from(set)
-          const response3 = await collection.updateOne({
-            _id: new ObjectId(req.params.insertid)
-          },{
-            $set:{
-              dislikeBy:array
-            }
-          })
-          res.json({response:response3})
-
-        }
-      }
-      if(likedBy&&!dislikeBy){//likeBy is defined
-        const index = likedBy.indexOf(req.params.email)
-
-        if(like){
-          console.log("hello world")
-          const set = new Set(likedBy);
-          set.add(req.params.email);
-          const array = Array.from(set)
-          const response3 = await collection.updateOne({
-            _id: new ObjectId(req.params.insertid)
-          },{
-            $set:{
-              likeBy:array
-            }
-          })
-          res.json({response:response3})
-          return;
-        }
-
-        else{
-          if(index==-1){
-            const array = [req.params.email]
-            const response3 = await collection.updateOne({
-              _id: new ObjectId(req.params.insertid)
-            },{
-              $set:{
-                dislikeBy:array
-              }
-            })
-            res.json({response:response3})
-            return;
-          }
-          else{
-            const array = [req.params.email]
-            likedBy.splice(index,1)
-            const response3 = await collection.updateOne({
-              _id: new ObjectId(req.params.insertid)
-            },{
-              $set:{
-                dislikeBy:array,
-                likeBy:likedBy
-              }
-            })
-            res.json({response:response3})
-            return;
-          }
-
-        }
-
-      }
-      if(likedBy&&dislikeBy){
-        if(like){
-          const index = dislikeBy.indexOf(req.params.email)
-          if(index==-1){
-            const set = new Set(likedBy)
-            set.add(req.params.email)
-            const array = Array.from(set)
-            const response3 = await collection.updateOne({
-              _id: new ObjectId(req.params.insertid)
-            },{
-              $set:{
-                likeBy:array
-              }
-            })
-            res.json({response:response3})
-            return
-          }
-          else{
-            dislikeBy.splice(index,1);
-            const set = new Set(likedBy)
-            set.add(req.params.email)
-            const array = Array.from(set)
-            const response3 = await collection.updateOne({
-              _id: new ObjectId(req.params.insertid)
-            },{
-              $set:{
-                dislikeBy:dislikeBy,
-                likeBy:array
-              }
-            })
-            res.json({response:response3})
-            return;
-          }
-        }
-        else{
-          const index = likedBy.indexOf(req.params.email)
-          if(index==-1){
-            const set = new Set(dislikeBy)
-            set.add(req.params.email)
-            const array = Array.from(set)
-            const response3 = await collection.updateOne({
-              _id: new ObjectId(req.params.insertid)
-            },{
-              $set:{
-                dislikeBy:array,
-
-              }
-            })
-            res.json({response:response3})
-            return;
-            }
-            else{
-            likedBy.splice(index,1)
-              const set = new Set(dislikeBy)
-              set.add(req.params.email)
-              const array = Array.from(set)
-              const response3 = await collection.updateOne({
-                _id: new ObjectId(req.params.insertid)
-              },{
-                $set:{
-                  dislikeBy:array,
-                  likeBy:likedBy
-                }
-              })
-              res.json({response:response3})
-              return;
-            }
-          }
-      }
+    } else {
+      res.status(400).json({ message: "Video not found" });
+      return
     }
-    else{
-      res.status(400).json({message:"video not found"})
-    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal server error" });
+    return
   }
-  catch(err){
+});
 
-  }
-})
+
 const multer2 = multer.diskStorage({
   destination: function(req,file,cb){
     cb(null,path.resolve(__dirname,"../database/videos/profile"))
@@ -631,6 +552,23 @@ router.post("/:email/adduserDetails", resource, async function(req, res) {
     return;
   }
 });
+//searching queries
+router.get("/:email/video/:query",async function(req,res){
+    try{
+      if(req.params.query){
+        res.json({message:"req.params.query"});
+      }
+      else{
+        res.json({message:"invalid query"})
+        return;
+      }
+    }
+    catch(err){
+      res.json({message:err})
+      return;
+    }
+})
+
 
 
 
