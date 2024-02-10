@@ -89,8 +89,8 @@ const { ObjectId } = require("mongodb");
 
 
 router.post("/:email/video",resource, (req, res) => {
-  ffmpeg.setFfmpegPath("/snap/bin/ffmpeg")
-  ffmpeg.setFfprobePath("/snap/bin/ffmpeg.ffprobe")
+  ffmpeg.setFfmpegPath(path.resolve(__dirname,"../ffmpeg"))
+  ffmpeg.setFfprobePath(path.resolve(__dirname,"../ffmpeg.ffprobe"))
   const directoryName = uuid();
   const email = req.params.email;
   const directoryPath = path.resolve(__dirname, "../database/videos", email, directoryName);
