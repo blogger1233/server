@@ -215,8 +215,8 @@ router.post("/:email/video",resource, (req, res) => {
               `;
                                   resolve();
                                 })
-                                .on('error', (err) => {
-                                  console.error(`Error for resolution ${value}:`, err);
+                                .on('error', (err,std,str) => {
+                                  console.error(`Error for resolution ${value}:`, err,std,str);
                                   reject(err);
                                 })
                                 .run();
