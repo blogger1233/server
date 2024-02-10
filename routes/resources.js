@@ -86,11 +86,11 @@ const multer = require("multer");
 const { v4: uuid } = require("uuid");
 const busboy = require("busboy");
 const { ObjectId } = require("mongodb");
-const { error } = require("console");
+
 
 router.post("/:email/video",resource, (req, res) => {
   ffmpeg.setFfmpegPath("/snap/bin/ffmpeg")
-  const ffprobe = ffmpeg.setFfprobePath("/snap/bin/ffmpeg.ffprobe")
+  ffmpeg.setFfprobePath("/snap/bin/ffmpeg.ffprobe")
   const directoryName = uuid();
   const email = req.params.email;
   const directoryPath = path.resolve(__dirname, "../database/videos", email, directoryName);
@@ -338,7 +338,8 @@ router.post("/:email/details/:insertid", resource, async function (req, res) {
             {
               $set: {
                 thumbnail: req.file,
-                title: req.body.heading
+                title: req.body.heading,
+                description:req.body.desc
               },
               $push:{
                 tags:req.body.tags.split("#")
@@ -552,22 +553,9 @@ router.post("/:email/adduserDetails", resource, async function(req, res) {
     return;
   }
 });
-//searching queries
-router.get("/:email/video/:query",async function(req,res){
-    try{
-      if(req.params.query){
-        res.json({message:"req.params.query"});
-      }
-      else{
-        res.json({message:"invalid query"})
-        return;
-      }
-    }
-    catch(err){
-      res.json({message:err})
-      return;
-    }
-})
+
+
+
 
 
 
