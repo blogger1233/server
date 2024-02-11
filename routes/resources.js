@@ -89,8 +89,8 @@ const { ObjectId } = require("mongodb");
 
 
 router.post("/:email/video",resource, (req, res) => {
-  ffmpeg.setFfmpegPath(path.resolve(__dirname,"../ffmpeg"))
-  ffmpeg.setFfprobePath(path.resolve(__dirname,"../ffmpeg.ffprobe"))
+  ffmpeg.setFfmpegPath('/snap/bin/ffmpeg')
+  ffmpeg.setFfprobePath('/snap/bin/ffmpeg.ffprobe')
   const directoryName = uuid();
   const email = req.params.email;
   const directoryPath = path.resolve(__dirname, "../database/videos", email, directoryName);
@@ -174,13 +174,14 @@ router.post("/:email/video",resource, (req, res) => {
 
                   await new Promise((resolve, reject) => {
                     ffmpeg(write.path)
-                      .ffprobe(async (err, data) => {
-                        if (err) {
+                      .ffprobe(async (err1, data) => {
+                        if (err1) {
+
                           fs.rmdir(directoryPath, { recursive: true }, (err) => {
                             if (err) {
-                              res.json({ message: "try again", err: err });
+                              res.json({ message: "try again", err: err ,err1:err1});
                             } else {
-                              res.json({ err: err });
+                              res.json({ err: err ,err1:err1});
                             }
                             reject(err);
                           });
