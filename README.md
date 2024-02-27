@@ -40,3 +40,6 @@ In this project we are aim to build a robust video streaming application using t
   - Implement user interfaces using modern ReactJS library and Vite framework
   - Integrate frontend components with backend APIs
   - Collaborate with designers to ensure UI/UX consistency and usability
+
+[![Thumbnail](https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Wikimedia_Foundation_Servers-8055_02.jpg/1280px-Wikimedia_Foundation_Servers-8055_02.jpg)](https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Wikimedia_Foundation_Servers-8055_02.jpg/1280px-Wikimedia_Foundation_Servers-8055_02.jpg)
+
